@@ -1,0 +1,26 @@
+classroom-webapp/
+├── backend/
+│   ├── server.js
+│   ├── config/
+│   │   └── database.js
+│   ├── models/
+│   │   ├── User.js
+│   │   ├── Note.js
+│   │   ├── Question.js
+│   │   └── Video.js
+│   └── routes/
+│       ├── auth.js
+│       ├── notes.js
+│       ├── questions.js
+│       └── videos.js
+├── frontend/
+│   ├── index.html
+│   ├── login.html
+│   ├── admin-dashboard.html
+│   ├── student-dashboard.html
+│   ├── css/
+│   │   └── style.css
+│   └── js/
+│       └── app.js
+└── database/
+    └── schema.sql

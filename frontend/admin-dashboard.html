@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Interactive Classroom</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">Interactive Classroom - Admin</div>
+        <div class="nav-user">
+            <span id="admin-name"></span>
+            <button onclick="logout()" class="btn btn-secondary">Logout</button>
+        </div>
+    </nav>
+    
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <ul class="menu">
+                <li><a href="#" onclick="showSection('notes')" class="active">Notes</a></li>
+                <li><a href="#" onclick="showSection('questions')">Questions</a></li>
+                <li><a href="#" onclick="showSection('videos')">Videos</a></li>
+                <li><a href="#" onclick="showSection('students')">Students</a></li>
+            </ul>
+        </aside>
+        
+        <main class="main-content">
+            <!-- Notes Section -->
+            <section id="notes-section" class="content-section active">
+                <h2>Manage Notes</h2>
+                
+                <div class="upload-form">
+                    <h3>Upload New Note</h3>
+                    <form onsubmit="uploadNote(event)">
+                        <div class="form-group">
+                            <label>Title</label>
+                            <input type="text" id="note-title" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Content</label>
+                            <textarea id="note-content" rows="5" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Attach File (Optional)</label>
+                            <input type="file" id="note-file" accept=".pdf,.doc,.docx,.txt">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Upload Note</button>
+                    </form>
+                </div>
+                
+                <div class="items-list">
+                    <h3>All Notes</h3>
+                    <div id="notes-list"></div>
+                </div>
+            </section>
+            
+            <!-- Questions Section -->
+            <section id="questions-section" class="content-section">
+                <h2>Manage Questions</h2>
+                
+                <div class="upload-form">
+                    <h3>Post New Question</h3>
+                    <form onsubmit="postQuestion(event)">
+                        <div class="form-group">
+                            <label>Title</label>
+                            <input type="text" id="question-title" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Question</label>
+                            <textarea id="question-text" rows="5" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Post Question</button>
+                    </form>
+                </div>
+                
+                <div class="items-list">
+                    <h3>All Questions & Answers</h3>
+                    <div id="questions-list"></div>
+                </div>
+            </section>
+            
+            <!-- Videos Section -->
+            <section id="videos-section" class="content-section">
+                <h2>Manage Videos</h2>
+                
+                <div class="upload-form">
+                    <h3>Upload New Video</h3>
+                    <form onsubmit="uploadVideo(event)">
+                        <div class="form-group">
+                            <label>Title</label>
+                            <input type="text" id="video-title" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Description</label>
+                            <textarea id="video-description" rows="3"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Video URL (YouTube, Vimeo, etc.)</label>
+                            <input type="url" id="video-url" placeholder="https://youtube.com/watch?v=...">
+                        </div>
+                        <p class="form-note">Or upload a video file:</p>
+                        <div class="form-group">
+                            <input type="file" id="video-file" accept="video/*">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Upload Video</button>
+                    </form>
+                </div>
+                
+                <div class="items-list">
+                    <h3>All Videos</h3>
+                    <div id="videos-list"></div>
+                </div>
+            </section>
+            
+            <!-- Students Section -->
+            <section id="students-section" class="content-section">
+                <h2>Students</h2>
+                <div id="students-list"></div>
+            </section>
+        </main>
+    </div>
+    
+    <script src="js/app.js"></script>
+    <script>
+        checkAuth('admin');
+        loadAdminData();
+        
+        function showSection(section) {
+            const sections = document.querySelectorAll('.content-section');
+            const menuItems = document.querySelectorAll('.menu a');
+            
+            sections.forEach(s => s.classList.remove('active'));
+            menuItems.forEach(m => m.classList.remove('active'));
+            
+            document.getElementById(`${section}-section`).classList.add('active');
+            event.target.classList.add('active');
+            
+            if (section === 'notes') loadNotes();
+            if (section === 'questions') loadQuestions();
+            if (section === 'videos') loadVideos();
+            if (section === 'students') loadStudents();
+        }
+        
+        function loadAdminData() {
+            const user = JSON.parse(localStorage.getItem('user'));
+            document.getElementById('admin-name').textContent = user.full_name;
+            loadNotes();
+        }
+        
+        async function uploadNote(event) {
+            event.preventDefault();
+            const formData = new FormData();
+            formData.append('title', document.getElementById('note-title').value);
+            formData.append('content', document.getElementById('note-content').value);
+            
+            const fileInput = document.getElementById('note-file');
+            if (fileInput.files) {
+                formData.append('file', fileInput.files);
+            }
+            
+            try {
+                const response = await apiCall('http://localhost:3000/api/notes', {
+                    method: 'POST',
+                    body: formData,
+                    isFormData: true
+                });
+                
+                if (response.ok) {
+                    alert('Note uploaded successfully!');
+                    event.target.reset();
+                    loadNotes();
+                }
+            } catch (error) {
+                alert('Error uploading note');
+            }
+        }
+        
+        async function loadNotes() {
+            try {
+                const response = await apiCall('http://localhost:3000/api/notes');
+                const notes = await response.json();
+                
+                const notesList = document.getElementById('notes-list');
+                notesList.innerHTML = notes.map(note => `
+                    <div class="item-card">
+                        <h4>${note.title}</h4>
+                        <p>${note.content}</p>
+                        ${note.file_url ? `<a href="http://localhost:3000${note.file_url}" target="_blank" class="btn btn-link">Download File</a>` : ''}
+                        <div class="item-meta">
+                            <span>Posted: ${new Date(note.created_at).toLocaleDateString()}</span>
+                            <button onclick="deleteNote(${note.id})" class="btn btn-danger">Delete</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading notes:', error);
+            }
+        }
+        
+        async function deleteNote(id) {
+            if (confirm('Are you sure you want to delete this note?')) {
+                try {
+                    await apiCall(`http://localhost:3000/api/notes/${id}`, { method: 'DELETE' });
+                    loadNotes();
+                } catch (error) {
+                    alert('Error deleting note');
+                }
+            }
+        }
+        
+        async function postQuestion(event) {
+            event.preventDefault();
+            const data = {
+                title: document.getElementById('question-title').value,
+                question_text: document.getElementById('question-text').value
+            };
+            
+            try {
+                const response = await apiCall('http://localhost:3000/api/questions', {
+                    method: 'POST',
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    alert('Question posted successfully!');
+                    event.target.reset
+			                    loadQuestions();
+                }
+            } catch (error) {
+                alert('Error posting question');
+            }
+        }
+        
+        async function loadQuestions() {
+            try {
+                const response = await apiCall('http://localhost:3000/api/questions');
+                const questions = await response.json();
+                
+                const questionsList = document.getElementById('questions-list');
+                questionsList.innerHTML = questions.map(q => `
+                    <div class="item-card">
+                        <h4>${q.title}</h4>
+                        <p>${q.question_text}</p>
+                        <div class="item-meta">
+                            <span>Posted by: ${q.posted_by_name}</span>
+                            <span>Posted: ${new Date(q.created_at).toLocaleDateString()}</span>
+                        </div>
+                        <div class="answers">
+                            <h5>Answers:</h5>
+                            ${q.answers.map(a => `
+                                <div class="answer-item">
+                                    <p>${a.answer_text}</p>
+                                    <span>Submitted by: ${a.student_name}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <button onclick="deleteQuestion(${q.id})" class="btn btn-danger">Delete</button>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading questions:', error);
+            }
+        }
+        
+        async function deleteQuestion(id) {
+            if (confirm('Are you sure you want to delete this question?')) {
+                try {
+                    await apiCall(`http://localhost:3000/api/questions/${id}`, { method: 'DELETE' });
+                    loadQuestions();
+                } catch (error) {
+                    alert('Error deleting question');
+                }
+            }
+        }
+        
+        async function uploadVideo(event) {
+            event.preventDefault();
+            const formData = new FormData();
+            formData.append('title', document.getElementById('video-title').value);
+            formData.append('description', document.getElementById('video-description').value);
+            
+            const urlInput = document.getElementById('video-url');
+            const fileInput = document.getElementById('video-file');
+            
+            if (urlInput.value) {
+                formData.append('video_url', urlInput.value);
+            }
+            
+            if (fileInput.files) {
+                formData.append('video', fileInput.files);
+            }
+            
+            try {
+                const response = await apiCall('http://localhost:3000/api/videos', {
+                    method: 'POST',
+                    body: formData,
+                    isFormData: true
+                });
+                
+                if (response.ok) {
+                    alert('Video uploaded successfully!');
+                    event.target.reset();
+                    loadVideos();
+                }
+            } catch (error) {
+                alert('Error uploading video');
+            }
+        }
+        
+        async function loadVideos() {
+            try {
+                const response = await apiCall('http://localhost:3000/api/videos');
+                const videos = await response.json();
+                
+                const videosList = document.getElementById('videos-list');
+                videosList.innerHTML = videos.map(video => `
+                    <div class="item-card">
+                        <h4>${video.title}</h4>
+                        <p>${video.description}</p>
+                        ${video.video_url ? `<a href="${video.video_url}" target="_blank" class="btn btn-link">Watch Video</a>` : ''}
+                        <div class="item-meta">
+                            <span>Uploaded by: ${video.uploaded_by_name}</span>
+                            <span>Uploaded: ${new Date(video.created_at).toLocaleDateString()}</span>
+                            <button onclick="deleteVideo(${video.id})" class="btn btn-danger">Delete</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading videos:', error);
+            }
+        }
+        
+        async function deleteVideo(id) {
+            if (confirm('Are you sure you want to delete this video?')) {
+                try {
+                    await apiCall(`http://localhost:3000/api/videos/${id}`, { method: 'DELETE' });
+                    loadVideos();
+                } catch (error) {
+                    alert('Error deleting video');
+                }
+            }
+        }
+        
+        async function loadStudents() {
+            try {
+                const response = await apiCall('http://localhost:3000/api/users');
+                const users = await response.json();
+                
+                const studentsList = document.getElementById('students-list');
+                studentsList.innerHTML = users.filter(u => u.role === 'student').map(u => `
+                    <div class="item-card">
+                        <h4>${u.full_name}</h4>
+                        <p><strong>Username:</strong> ${u.username}</p>
+                        <p><strong>Email:</strong> ${u.email}</p>
+                        <p><strong>Role:</strong> Student</p>
+                        <div class="item-meta">
+                            <span>Joined: ${new Date(u.created_at).toLocaleDateString()}</span>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading students:', error);
+            }
+        }
+        
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'index.html';
+        }
+        
+        function checkAuth(requiredRole) {
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (!user || user.role !== requiredRole) {
+                window.location.href = 'index.html';
+            }
+        }
+        
+        async function apiCall(url, options = {}) {
+            const headers = {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'Content-Type': 'application/json'
+            };
+            
+            if (options.isFormData) {
+                headers['Content-Type'] = 'multipart/form-data';
+            }
+            
+            const response = await fetch(url, {
+                ...options,
+                headers: { ...headers, ...options.headers }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            return response;
+        }
+    </script>
+</body>
+</html>
